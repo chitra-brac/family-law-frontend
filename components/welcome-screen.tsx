@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { WebhookConfig } from "@/components/webhook-config"
 import { Settings } from "lucide-react"
+import { AvatarImage } from "@radix-ui/react-avatar"
 
 interface WelcomeScreenProps {
   onStartChat: () => void
@@ -38,7 +39,11 @@ export function WelcomeScreen({ onStartChat, webhookUrl, onWebhookChange }: Welc
 
       {/* Bot Avatar with gentle bounce animation */}
       <div className="mb-8 animate-bounce-gentle z-10">
-        <Avatar className="w-24 h-24 border-4 border-white/20 shadow-lg">
+        <Avatar className="w-40 h-40 border-4 border-white/20 shadow-lg">
+        <AvatarImage 
+            src="../../nira.png"
+            alt="Noaii Logo"
+          />
           <AvatarFallback
             className="text-2xl font-bold"
             style={{
@@ -46,7 +51,7 @@ export function WelcomeScreen({ onStartChat, webhookUrl, onWebhookChange }: Welc
               color: "#ffffff",
             }}
           >
-            N
+            N 
           </AvatarFallback>
         </Avatar>
       </div>
@@ -56,11 +61,11 @@ export function WelcomeScreen({ onStartChat, webhookUrl, onWebhookChange }: Welc
         <h1 className="text-2xl font-bold text-balance" style={{ color: "#ffffff" }}>
           Hello
           <br />
-          I'm Noaii
+          আমি ইরা
         </h1>
 
         <p className="text-lg text-balance" style={{ color: "#ffffff" }}>
-          How can I help you?
+          আপনাকে আপনার আধিকার সম্পর্কে জানতে এখানে আছি!
         </p>
       </div>
 
@@ -70,7 +75,7 @@ export function WelcomeScreen({ onStartChat, webhookUrl, onWebhookChange }: Welc
         size="lg"
         className="bg-white text-purple-600 hover:bg-white/90 font-semibold px-8 py-3 rounded-full shadow-lg transition-all duration-200 hover:scale-105 z-10"
       >
-        I want to know!
+        জানতে চাই। 
       </Button>
 
       {/* Webhook Config Overlay */}

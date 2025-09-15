@@ -81,9 +81,9 @@ export function ChatInterface({ onBack, webhookUrl }: ChatInterfaceProps) {
           <ArrowLeft className="w-5 h-5" />
         </Button>
 
-        <div className="flex items-center space-x-2">
-          <BotAvatar size="sm" />
-          <span className="font-semibold text-foreground">Noaii</span>
+        <div className="flex flex-col items-center space-y-1">
+          <BotAvatar size="lg" />
+          <span className="font-semibold text-foreground">ইরা</span>
         </div>
 
         <div className="flex items-center space-x-1">
