@@ -25,10 +25,12 @@ export interface ChatSession {
 
 const INITIAL_MESSAGE: Message = {
   id: "welcome",
-  content: "Hello, I'm Noaii. How can I help you?",
+  content: "হ্যালো, আমি চিত্রা—বাংলাদেশে নারীদের অধিকার ও আইন বিষয়ে সংক্ষিপ্ত, নির্ভরযোগ্য তথ্য দিই। আপনি কোন বিষয়ে জানতে চান—বিবাহ/তালাক, ভরণপোষণ, গার্হস্থ্য সহিংসতা, কর্মক্ষেত্রে হয়রানি, ন্যায্য মজুরি বা সম্পত্তির অধিকার?",
   sender: "bot",
   timestamp: new Date(),
 }
+
+const EMBEDDED_WEBHOOK_URL = "https://bracuai-webhook.bracits.net/webhook/6c94d2f9-ffe4-4fe0-95cb-927c38e8e321" // <-- Put your URL here
 
 export function useChat(sessionId?: string) {
   const [chatSessions, setChatSessions] = useLocalStorage<ChatSession[]>("chatbot-sessions", [])
@@ -37,7 +39,7 @@ export function useChat(sessionId?: string) {
   const [state, setState] = useState<ChatState>({
     messages: [INITIAL_MESSAGE],
     isTyping: false,
-    quickReplies: ["OK", "No, I dunno", "Tell me more"],
+    quickReplies: ["আচ্ছা", "জানি নাহ", "আরও জানতে চাই"],
   })
 
   // Load session from localStorage on mount
@@ -125,43 +127,34 @@ export function useChat(sessionId?: string) {
   }, [])
 
   const sendMessage = useCallback(
-    async (content: string, webhookUrl?: string) => {
+    async (content: string) => {
       if (!content.trim()) return
 
-      // Add user message
       addMessage(content.trim(), "user")
       setTyping(true)
 
       try {
-        if (webhookUrl) {
-          // Send to n8n webhook
-          const response = await fetch(webhookUrl, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              message: content.trim(),
-              timestamp: new Date().toISOString(),
-              sessionId: sessionId || currentSessionId || `session-${Date.now()}`,
-            }),
-          })
+        // Always use the embedded webhook URL
+        const response = await fetch(EMBEDDED_WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message: content.trim(),
+            timestamp: new Date().toISOString(),
+            sessionId: sessionId || currentSessionId || `session-${Date.now()}`,
+          }),
+        })
 
-          if (response.ok) {
-            const data = await response.json()
-            addMessage(data.response || "I received your message!", "bot")
-
-            // Update quick replies if provided
-            if (data.quickReplies) {
-              setQuickReplies(data.quickReplies)
-            }
-          } else {
-            throw new Error("Failed to send message")
+        if (response.ok) {
+          const data = await response.json()
+          addMessage(data.output, "bot")
+          if (data.quickReplies) {
+            setQuickReplies(data.quickReplies)
           }
         } else {
-          // Fallback simulation
-          await new Promise((resolve) => setTimeout(resolve, 1500))
-          addMessage("Thanks for your message! I'm processing your request...", "bot")
+          throw new Error("Failed to send message")
         }
       } catch (error) {
         console.error("Error sending message:", error)
@@ -177,7 +170,7 @@ export function useChat(sessionId?: string) {
     setState({
       messages: [INITIAL_MESSAGE],
       isTyping: false,
-      quickReplies: ["OK", "No, I dunno", "Tell me more"],
+      quickReplies: ["আচ্ছা", "জানি নাহ", "আরও জানতে চাই"],
     })
 
     // Clear current session

@@ -1,10 +1,12 @@
 import { BotAvatar } from "./bot-avatar"
+import { ExternalLink } from "lucide-react"
 
 interface Message {
   id: string
   content: string
   sender: "user" | "bot"
   timestamp: Date
+  sources?: { name: "sajid"; url: string }[] // optional source links
 }
 
 interface MessageBubbleProps {
@@ -38,6 +40,28 @@ export function MessageBubble({ message, isAnimated = false }: MessageBubbleProp
               minute: "2-digit",
             })}
           </span>
+
+          {message.sources && message.sources.length > 0 && (
+            <div className="mt-2 pt-2 border-t border-border">
+              <p className="text-xs font-semibold mb-1">Sources:</p>
+              <ul className="list-disc list-inside space-y-1">
+                {message.sources.map((source, index) => (
+                  <li key={index}>
+                    <a
+                      href={source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline flex items-center space-x-1"
+                    >
+                      <span>{source.name || "some"}</span>
+                      
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
         </div>
       </div>
     </div>

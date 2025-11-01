@@ -46,12 +46,12 @@ export function ChatInterface({ onBack, webhookUrl }: ChatInterfaceProps) {
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return
 
-    await sendMessage(inputValue, webhookUrl)
+    await sendMessage(inputValue) // Remove webhookUrl
     setInputValue("")
   }
 
   const handleQuickReply = (reply: string) => {
-    sendMessage(reply, webhookUrl)
+    sendMessage(reply) // Remove webhookUrl
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -83,7 +83,7 @@ export function ChatInterface({ onBack, webhookUrl }: ChatInterfaceProps) {
 
         <div className="flex flex-col items-center space-y-1">
           <BotAvatar size="lg" />
-          <span className="font-semibold text-foreground">ইরা</span>
+          <span className="font-semibold text-foreground">চিত্রা</span>
         </div>
 
         <div className="flex items-center space-x-1">

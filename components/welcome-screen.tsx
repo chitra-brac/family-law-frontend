@@ -61,7 +61,7 @@ export function WelcomeScreen({ onStartChat, webhookUrl, onWebhookChange }: Welc
         <h1 className="text-2xl font-bold text-balance" style={{ color: "#ffffff" }}>
           Hello
           <br />
-          আমি ইরা
+          আমি চিত্রা
         </h1>
 
         <p className="text-lg text-balance" style={{ color: "#ffffff" }}>
