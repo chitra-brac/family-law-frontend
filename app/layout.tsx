@@ -8,7 +8,6 @@ export const metadata: Metadata = {
   title: "Chitra",
   description:
     "Chitra is a chatbot that helps you find information about the laws and regulations in Bangladesh.",
-  generator: "v0.app",
 };
 
 export default function RootLayout({
