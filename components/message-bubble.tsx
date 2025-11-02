@@ -7,7 +7,7 @@ interface Citation {
   section: string | null;
   text_excerpt: string;
   relevance_score: number;
-  source_url?: string;
+  source_url: string | null;
 }
 
 interface Helpline {

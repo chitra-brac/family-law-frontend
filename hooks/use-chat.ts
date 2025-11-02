@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react"
 import { useLocalStorage } from "./use-local-storage"
+import type { ChatMessage, ChatRequest, ChatResponse } from "@/types/chat"
 
 export interface Citation {
   act_name: string
@@ -9,7 +10,7 @@ export interface Citation {
   section: string | null
   text_excerpt: string
   relevance_score: number
-  source_url?: string
+  source_url: string | null
 }
 
 export interface Helpline {
@@ -25,6 +26,19 @@ export interface Message {
   citations?: Citation[]
   helplines?: Helpline[]
   is_emergency?: boolean
+}
+
+/**
+ * Convert internal Message format to API ChatMessage format
+ * Filters out the welcome message and maps sender to role
+ */
+const convertToApiMessages = (messages: Message[]): ChatMessage[] => {
+  return messages
+    .filter((msg) => msg.id !== "welcome") // Don't send the initial welcome message
+    .map((msg) => ({
+      role: msg.sender === "user" ? ("user" as const) : ("assistant" as const),
+      content: msg.content,
+    }))
 }
 
 export interface ChatState {
@@ -55,6 +69,42 @@ const getApiUrl = () => {
   }
   // Server-side fallback (shouldn't be needed in this client component)
   return process.env.API_URL || ""
+}
+
+/**
+ * Detect if user is on a mobile device
+ */
+const isMobileDevice = (): boolean => {
+  if (typeof window === "undefined") return false
+  return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+}
+
+/**
+ * Poll for async chat result
+ */
+const pollForResult = async (apiUrl: string, requestId: string, maxAttempts = 60): Promise<ChatResponse> => {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const response = await fetch(`${apiUrl}/chat/${requestId}`)
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch chat status: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    if (data.status === "completed" && data.result) {
+      return data.result as ChatResponse
+    }
+
+    if (data.status === "error") {
+      throw new Error(data.error || "Chat processing failed")
+    }
+
+    // Still pending, wait 1 second before next poll
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+  }
+
+  throw new Error("Chat request timed out")
 }
 
 export function useChat(sessionId?: string) {
@@ -154,10 +204,15 @@ export function useChat(sessionId?: string) {
     }))
   }, [])
 
-  const sendMessage = useCallback(
+  /**
+   * Send message using async endpoint (for mobile devices)
+   * Submits request and polls for result
+   */
+  const sendMessageAsync = useCallback(
     async (content: string) => {
       if (!content.trim()) return
 
+      // Add user message immediately to UI
       addMessage(content.trim(), "user")
       setTyping(true)
 
@@ -167,41 +222,143 @@ export function useChat(sessionId?: string) {
           throw new Error("API_URL is not configured")
         }
 
-        const response = await fetch(apiUrl, {
+        // Convert current messages to conversation history
+        const conversationHistory = convertToApiMessages(state.messages)
+
+        const requestBody: ChatRequest = {
+          message: content.trim(),
+          timestamp: new Date().toISOString(),
+          sessionId: sessionId || currentSessionId || `session-${Date.now()}`,
+          conversationHistory: conversationHistory,
+        }
+
+        // Submit async request
+        const submitResponse = await fetch(`${apiUrl}/chat/async`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            message: content.trim(),
-            timestamp: new Date().toISOString(),
-            sessionId: sessionId || currentSessionId || `session-${Date.now()}`,
-          }),
+          body: JSON.stringify(requestBody),
         })
 
-        if (response.ok) {
-          const data = await response.json()
-          // Handle new API response structure
-          const responseText = data.response || data.output || ""
-          addMessage(responseText, "bot", {
-            citations: data.citations,
-            helplines: data.helplines,
-            is_emergency: data.is_emergency,
-          })
-          if (data.quickReplies) {
-            setQuickReplies(data.quickReplies)
-          }
-        } else {
-          throw new Error("Failed to send message")
+        if (!submitResponse.ok) {
+          throw new Error(`API request failed with status ${submitResponse.status}`)
+        }
+
+        const asyncData = await submitResponse.json()
+        const requestId = asyncData.requestId
+
+        if (!requestId) {
+          throw new Error("No request ID returned from async endpoint")
+        }
+
+        // Poll for result
+        const result = await pollForResult(apiUrl, requestId)
+
+        // Add bot response to UI
+        const responseText = result.response || ""
+        addMessage(responseText, "bot", {
+          citations: result.citations || undefined,
+          helplines: result.helplines || undefined,
+          is_emergency: result.is_emergency,
+        })
+
+        if (result.quickReplies && result.quickReplies.length > 0) {
+          setQuickReplies(result.quickReplies)
         }
       } catch (error) {
-        console.error("Error sending message:", error)
-        addMessage("Sorry, I'm having trouble connecting. Please try again.", "bot")
+        console.error("Error sending async message:", error)
+        addMessage(
+          "দুঃখিত, সংযোগে সমস্যা হচ্ছে। অনুগ্রহ করে আবার চেষ্টা করুন। (Sorry, I'm having trouble connecting. Please try again.)",
+          "bot",
+        )
       } finally {
         setTyping(false)
       }
     },
-    [addMessage, setTyping, setQuickReplies, sessionId, currentSessionId],
+    [addMessage, setTyping, setQuickReplies, sessionId, currentSessionId, state.messages],
+  )
+
+  /**
+   * Send message using sync endpoint (for desktop/web)
+   */
+  const sendMessageSync = useCallback(
+    async (content: string) => {
+      if (!content.trim()) return
+
+      // Add user message immediately to UI
+      addMessage(content.trim(), "user")
+      setTyping(true)
+
+      try {
+        const apiUrl = getApiUrl()
+        if (!apiUrl) {
+          throw new Error("API_URL is not configured")
+        }
+
+        // Convert current messages (before adding new user message) to conversation history
+        // This ensures we send previous messages only, not the current one
+        const conversationHistory = convertToApiMessages(state.messages)
+
+        const requestBody: ChatRequest = {
+          message: content.trim(),
+          timestamp: new Date().toISOString(),
+          sessionId: sessionId || currentSessionId || `session-${Date.now()}`,
+          conversationHistory: conversationHistory, // Send conversation history
+        }
+
+        const response = await fetch(`${apiUrl}/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestBody),
+        })
+
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`)
+        }
+
+        const data: ChatResponse = await response.json()
+
+        // Add bot response to UI
+        const responseText = data.response || ""
+        addMessage(responseText, "bot", {
+          citations: data.citations || undefined,
+          helplines: data.helplines || undefined,
+          is_emergency: data.is_emergency,
+        })
+
+        if (data.quickReplies && data.quickReplies.length > 0) {
+          setQuickReplies(data.quickReplies)
+        }
+      } catch (error) {
+        console.error("Error sending message:", error)
+        addMessage(
+          "দুঃখিত, সংযোগে সমস্যা হচ্ছে। অনুগ্রহ করে আবার চেষ্টা করুন। (Sorry, I'm having trouble connecting. Please try again.)",
+          "bot",
+        )
+      } finally {
+        setTyping(false)
+      }
+    },
+    [addMessage, setTyping, setQuickReplies, sessionId, currentSessionId, state.messages],
+  )
+
+  /**
+   * Main send message function
+   * Automatically chooses between sync and async based on device type
+   */
+  const sendMessage = useCallback(
+    async (content: string) => {
+      // Use async endpoint for mobile devices to handle app switching
+      if (isMobileDevice()) {
+        return sendMessageAsync(content)
+      } else {
+        return sendMessageSync(content)
+      }
+    },
+    [sendMessageAsync, sendMessageSync],
   )
 
   const clearChat = useCallback(() => {
