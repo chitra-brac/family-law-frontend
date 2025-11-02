@@ -1,20 +1,14 @@
 "use client"
 
-import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { WebhookConfig } from "@/components/webhook-config"
-import { Settings } from "lucide-react"
 import { AvatarImage } from "@radix-ui/react-avatar"
 
 interface WelcomeScreenProps {
   onStartChat: () => void
-  webhookUrl?: string
-  onWebhookChange: (url: string) => void
 }
 
-export function WelcomeScreen({ onStartChat, webhookUrl, onWebhookChange }: WelcomeScreenProps) {
-  const [showConfig, setShowConfig] = useState(false)
+export function WelcomeScreen({ onStartChat }: WelcomeScreenProps) {
 
   return (
     <div
@@ -25,18 +19,6 @@ export function WelcomeScreen({ onStartChat, webhookUrl, onWebhookChange }: Welc
         minWidth: "100%",
       }}
     >
-      {/* Settings button */}
-      <div className="absolute top-4 right-4 z-20">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setShowConfig(!showConfig)}
-          className="text-white hover:bg-white/10"
-        >
-          <Settings className="w-5 h-5" />
-        </Button>
-      </div>
-
       {/* Bot Avatar with gentle bounce animation */}
       <div className="mb-8 animate-bounce-gentle z-10">
         <Avatar className="w-40 h-40 border-4 border-white/20 shadow-lg">
@@ -77,21 +59,6 @@ export function WelcomeScreen({ onStartChat, webhookUrl, onWebhookChange }: Welc
       >
         জানতে চাই। 
       </Button>
-
-      {/* Webhook Config Overlay */}
-      {showConfig && (
-        <div className="absolute inset-0 z-30 flex flex-col" style={{ backgroundColor: "rgba(255, 255, 255, 0.95)" }}>
-          <div className="p-4 h-full overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Settings</h2>
-              <Button variant="ghost" size="sm" onClick={() => setShowConfig(false)}>
-                Close
-              </Button>
-            </div>
-            <WebhookConfig webhookUrl={webhookUrl} onWebhookChange={onWebhookChange} />
-          </div>
-        </div>
-      )}
     </div>
   )
 }

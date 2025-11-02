@@ -3,11 +3,28 @@
 import { useState, useCallback, useEffect } from "react"
 import { useLocalStorage } from "./use-local-storage"
 
+export interface Citation {
+  act_name: string
+  act_year: string
+  section: string | null
+  text_excerpt: string
+  relevance_score: number
+  source_url?: string
+}
+
+export interface Helpline {
+  number: string
+  description: string
+}
+
 export interface Message {
   id: string
   content: string
   sender: "user" | "bot"
   timestamp: Date
+  citations?: Citation[]
+  helplines?: Helpline[]
+  is_emergency?: boolean
 }
 
 export interface ChatState {
@@ -30,7 +47,15 @@ const INITIAL_MESSAGE: Message = {
   timestamp: new Date(),
 }
 
-const EMBEDDED_WEBHOOK_URL = "https://bracuai-webhook.bracits.net/webhook/6c94d2f9-ffe4-4fe0-95cb-927c38e8e321" // <-- Put your URL here
+// Get API_URL from environment variable
+const getApiUrl = () => {
+  if (typeof window !== "undefined") {
+    // Client-side: use NEXT_PUBLIC_ prefixed env var
+    return process.env.NEXT_PUBLIC_API_URL || ""
+  }
+  // Server-side fallback (shouldn't be needed in this client component)
+  return process.env.API_URL || ""
+}
 
 export function useChat(sessionId?: string) {
   const [chatSessions, setChatSessions] = useLocalStorage<ChatSession[]>("chatbot-sessions", [])
@@ -89,12 +114,15 @@ export function useChat(sessionId?: string) {
   )
 
   const addMessage = useCallback(
-    (content: string, sender: "user" | "bot") => {
+    (content: string, sender: "user" | "bot", metadata?: { citations?: Citation[]; helplines?: Helpline[]; is_emergency?: boolean }) => {
       const newMessage: Message = {
         id: `${Date.now()}-${Math.random()}`,
         content,
         sender,
         timestamp: new Date(),
+        citations: metadata?.citations,
+        helplines: metadata?.helplines,
+        is_emergency: metadata?.is_emergency,
       }
 
       setState((prev) => {
@@ -134,8 +162,12 @@ export function useChat(sessionId?: string) {
       setTyping(true)
 
       try {
-        // Always use the embedded webhook URL
-        const response = await fetch(EMBEDDED_WEBHOOK_URL, {
+        const apiUrl = getApiUrl()
+        if (!apiUrl) {
+          throw new Error("API_URL is not configured")
+        }
+
+        const response = await fetch(apiUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -149,7 +181,13 @@ export function useChat(sessionId?: string) {
 
         if (response.ok) {
           const data = await response.json()
-          addMessage(data.output, "bot")
+          // Handle new API response structure
+          const responseText = data.response || data.output || ""
+          addMessage(responseText, "bot", {
+            citations: data.citations,
+            helplines: data.helplines,
+            is_emergency: data.is_emergency,
+          })
           if (data.quickReplies) {
             setQuickReplies(data.quickReplies)
           }

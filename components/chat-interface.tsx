@@ -15,10 +15,9 @@ import { useChat } from "@/hooks/use-chat"
 
 interface ChatInterfaceProps {
   onBack: () => void
-  webhookUrl?: string
 }
 
-export function ChatInterface({ onBack, webhookUrl }: ChatInterfaceProps) {
+export function ChatInterface({ onBack }: ChatInterfaceProps) {
   const {
     messages,
     isTyping,
@@ -46,12 +45,12 @@ export function ChatInterface({ onBack, webhookUrl }: ChatInterfaceProps) {
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return
 
-    await sendMessage(inputValue) // Remove webhookUrl
+    await sendMessage(inputValue)
     setInputValue("")
   }
 
   const handleQuickReply = (reply: string) => {
-    sendMessage(reply) // Remove webhookUrl
+    sendMessage(reply)
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
